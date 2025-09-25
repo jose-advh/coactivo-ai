@@ -2,21 +2,22 @@
 
 import Image from "next/image";
 import { useState } from "react";
-import { loginAbogado } from "@/lib/auth";
+import { registerAbogado } from "@/lib/auth";
 
-export default function Home() {
+export default function userRegister() {
+  const [nombre, setNombre] = useState("");
   const [correo, setCorreo] = useState("");
   const [password, setPassword] = useState("");
   const [msg, setMsg] = useState("");
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    const { data, error } = await loginAbogado(correo, password);
+    const { error } = await registerAbogado(nombre, correo, password);
 
     if (error) {
       setMsg("Error:" + error.message);
     } else {
-      setMsg("Bienvenido" + data.user.email);
+      setMsg("Abogado registrado correctamente");
     }
   };
 
@@ -27,16 +28,27 @@ export default function Home() {
           className="w-[50%] flex flex-col items-center justify-center gap-5"
           onSubmit={handleSubmit}
         >
-          <h2 className="text-2xl">¡Bienvenido de vuelta!</h2>
+          <h2 className="text-2xl">¡Un placer verte por aquí!</h2>
+          <div className="flex flex-col w-[80%]">
+            <label htmlFor="nombreUsuario">Nombre</label>
+            <input
+              type="text"
+              id="nombreUsuario"
+              className="p-2 rounded"
+              placeholder="Mi Nombre"
+              value={nombre}
+              onChange={(e) => setNombre(e.target.value)}
+            />
+          </div>
           <div className="flex flex-col w-[80%]">
             <label htmlFor="correoUsuario">Correo</label>
             <input
               type="email"
               id="correoUsuario"
               className="p-2 rounded"
+              placeholder="example@gmail.com"
               value={correo}
               onChange={(e) => setCorreo(e.target.value)}
-              placeholder="example@gmail.com"
             />
           </div>
           <div className="flex flex-col w-[80%]">
@@ -45,19 +57,19 @@ export default function Home() {
               type="password"
               id="contraseña"
               className="rounded p-2"
+              placeholder="**********"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              placeholder="**********"
             />
           </div>
           <p>
-            ¿Aún no tienes una cuenta? <a href="/register">Crea una aquí</a>
+            ¿Ya tienes una cuenta? <a href="/">Inicia Sesión</a>
           </p>
           <button
             type="submit"
             className="border-1 px-7 py-2 rounded cursor-pointer"
           >
-            Ingresar
+            Registrarme
           </button>
           <p>{msg}</p>
         </form>
