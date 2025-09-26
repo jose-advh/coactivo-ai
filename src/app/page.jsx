@@ -3,6 +3,7 @@
 import Image from "next/image";
 import { useState } from "react";
 import { loginAbogado } from "@/lib/auth";
+import { useRouter } from "next/navigation";
 import {
   Dialog,
   DialogContent,
@@ -17,6 +18,7 @@ export default function Home() {
   const [correo, setCorreo] = useState("");
   const [password, setPassword] = useState("");
   const [msg, setMsg] = useState("");
+  const router = useRouter();
   const [modal, setModal] = useState({
     open: false,
     title: "",
@@ -36,14 +38,14 @@ export default function Home() {
         type: "error",
       });
     } else {
-      setMsg("Bienvenido" + data.user.email);
+      router.push("/dashboard");
     }
   };
 
   return (
     <section className="w-[80%] h-[100dvh] w-[100%] bg-[url('/login-background.jpg')] flex justify-around items-center m-auto">
-      <div className="w-[90%] sm:w-[70%] h-[70%] rounded-xl flex items-center m-auto shadow">
-        <article className="hidden sm:flex flex-col items-center justify-center backdrop-blur-2xl bg-[#9a5820] h-[100%] w-[50%]">
+      <div className="w-[90%] sm:w-[70%] h-[70%] rounded-xl flex items-center m-auto shadow-lg">
+        <article className="hidden sm:flex flex-col rounded-xl items-center justify-center  bg-[#9a5820] h-[100%] w-[50%]">
           <Image
             src="/login_man.svg"
             width={250}
@@ -52,7 +54,7 @@ export default function Home() {
           />
         </article>
         <form
-          className="w-[100%] md:w-[50%] h-[100%] flex flex-col backdrop-blur-2xl items-center justify-center gap-5"
+          className="w-[100%] md:w-[50%] h-[100%] rounded-xl flex flex-col backdrop-blur-3xl items-center justify-center gap-5"
           onSubmit={handleSubmit}
         >
           <h2 className="text-2xl font-bold">¡Bienvenido de vuelta!</h2>
