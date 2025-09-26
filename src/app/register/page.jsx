@@ -53,9 +53,9 @@ export default function UserRegister() {
 
   return (
     <section className="w-[100%] h-[100dvh] bg-[url('/login-background.jpg')] flex justify-around items-center m-auto">
-      <div className="w-[70%] h-[70%] rounded-xl flex items-center m-auto shadow">
+      <div className="w-[90%] sm:w-[70%] h-[70%] rounded-xl flex items-center m-auto shadow">
         {/* Lado izquierdo */}
-        <article className="flex flex-col items-center justify-center backdrop-blur-2xl bg-[#9a5820] h-[100%] w-[50%]">
+        <article className="hidden sm:flex flex-col items-center justify-center backdrop-blur-2xl bg-[#9a5820] h-[100%] w-[50%]">
           <Image
             src="/login_man.svg"
             width={250}
@@ -66,7 +66,7 @@ export default function UserRegister() {
 
         {/* Formulario */}
         <form
-          className="w-[50%] h-[100%] flex flex-col py-5 backdrop-blur-2xl items-center justify-center gap-5"
+          className="w-[100%] md:w-[50%] h-[100%] flex flex-col py-5 backdrop-blur-2xl items-center justify-center gap-5"
           onSubmit={handleSubmit}
         >
           <h2 className="text-2xl font-bold">¡Crea tu Cuenta!</h2>
