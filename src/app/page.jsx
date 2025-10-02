@@ -38,12 +38,12 @@ export default function Home() {
         type: "error",
       });
     } else {
-      router.push("/dashboard");
+      window.location.href = "/dashboard";
     }
   };
 
   return (
-    <section className="w-[80%] h-[100dvh] w-[100%] bg-[url('/login-background.jpg')] flex justify-around items-center m-auto">
+    <section className="h-[100dvh] w-[100%] bg-[url('/login-background.jpg')] flex justify-around items-center m-auto">
       <div className="w-[90%] sm:w-[70%] h-[70%] rounded-xl flex items-center m-auto shadow-lg">
         <article className="hidden sm:flex flex-col rounded-xl items-center justify-center  bg-[#9a5820] h-[100%] w-[50%]">
           <Image
