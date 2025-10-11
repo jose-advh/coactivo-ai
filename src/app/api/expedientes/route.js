@@ -2,7 +2,6 @@ import { NextResponse } from "next/server";
 import { procesarIA } from "../ia/clasificar/route";
 import mammoth from "mammoth";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
-import pdfParse from "pdf-parse";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -48,6 +47,7 @@ export async function POST(req) {
 
         // Extracción del texto según tipo de archivo
         if (archivo_path.toLowerCase().endsWith(".pdf")) {
+          const { default: pdfParse } = await import("pdf-parse");
           const parsed = await pdfParse(buffer);
           textoExtraido = parsed.text;
         } else if (archivo_path.toLowerCase().endsWith(".docx")) {
