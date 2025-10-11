@@ -1,7 +1,11 @@
 import { NextResponse } from "next/server";
 import mammoth from "mammoth";
-import { extract } from "pdf-extraction";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
+import * as pdfjsLib from "pdfjs-dist/legacy/build/pdf.mjs";
+import "pdfjs-dist/build/pdf.worker.mjs";
+
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
 export async function POST(req) {
   try {
@@ -22,7 +26,6 @@ export async function POST(req) {
 
     (async () => {
       try {
-        console.log("Descargando archivo:", archivo_path);
         const { data: file, error: downloadError } = await supabaseAdmin.storage
           .from("expedientes")
           .download(archivo_path);
@@ -30,24 +33,44 @@ export async function POST(req) {
         if (downloadError) throw downloadError;
 
         const arrayBuffer = await file.arrayBuffer();
-        const buffer = Buffer.from(arrayBuffer);
+        const uint8Array = new Uint8Array(arrayBuffer);
 
         let textoExtraido = "";
 
         if (archivo_path.endsWith(".pdf")) {
-          const { text } = await extract(buffer);
-          textoExtraido = text;
+          const pdf = await pdfjsLib.getDocument({ data: uint8Array }).promise;
+          let texto = "";
+
+          for (let i = 1; i <= pdf.numPages; i++) {
+            const page = await pdf.getPage(i);
+            const content = await page.getTextContent();
+            const pageText = content.items.map((item) => item.str).join(" ");
+            texto += pageText + "\n";
+          }
+
+          textoExtraido = texto;
         } else if (archivo_path.endsWith(".docx")) {
-          const { value } = await mammoth.extractRawText({ buffer });
+          const { value } = await mammoth.extractRawText({
+            buffer: uint8Array,
+          });
           textoExtraido = value;
         } else {
           throw new Error("Formato no soportado");
         }
 
-        console.log("Texto extraído (primeros 500 caracteres):");
         console.log(textoExtraido.substring(0, 500));
+
+        await supabaseAdmin
+          .from("expedientes")
+          .update({
+            semaforo: "procesado",
+          })
+          .eq("id", expediente.id);
       } catch (error) {
-        console.error("Error procesando archivo:", error);
+        await supabaseAdmin
+          .from("expedientes")
+          .update({ semaforo: "error" })
+          .eq("id", expediente.id);
       }
     })();
 
@@ -56,7 +79,6 @@ export async function POST(req) {
       mensaje: "Archivo recibido y procesando...",
     });
   } catch (error) {
-    console.error("Error general:", error);
     return NextResponse.json({
       ok: false,
       mensaje: "Error interno al procesar el archivo",

@@ -2,27 +2,25 @@ import { supabase } from "./supabaseClient";
 
 export async function registerAbogado(nombre, correo, password) {
   const correoLimpio = correo.trim();
+
   const { data: authData, error: authError } = await supabase.auth.signUp({
     email: correoLimpio,
     password,
   });
 
-  if (authError) return { error: authError };
-  const user = authData.user;
+  if (authError) throw authError;
 
-  // Save
-
-  const { error: insertError } = await supabase.from("abogados").insert([
-    {
+  await fetch("/api/abogados", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      id_usuario: authData.user.id,
       nombre,
-      correo,
-      user_id: user.id,
-    },
-  ]);
+      correo: correoLimpio,
+    }),
+  });
 
-  if (insertError) return { error: insertError };
-
-  return { data: user };
+  return authData;
 }
 
 export async function loginAbogado(email, password) {
