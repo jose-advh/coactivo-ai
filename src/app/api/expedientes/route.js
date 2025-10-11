@@ -1,5 +1,4 @@
 import { NextResponse } from "next/server";
-import { procesarIA } from "../ia/clasificar/route";
 import mammoth from "mammoth";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 
@@ -31,7 +30,7 @@ export async function POST(req) {
     // Procesamiento asíncrono
     (async () => {
       try {
-        console.log("📥 Descargando archivo:", archivo_path);
+        console.log("Descargando archivo:", archivo_path);
 
         // Descargar el archivo desde el storage
         const { data: file, error: downloadError } = await supabaseAdmin.storage
@@ -60,19 +59,27 @@ export async function POST(req) {
         console.log("Texto extraído (primeros 500 caracteres):");
         console.log(textoExtraido.substring(0, 500));
 
-        // Marcar expediente como procesado (antes de IA)
+        // Marcar expediente como procesado antes de IA
         await supabaseAdmin
           .from("expedientes")
           .update({ semaforo: "procesado" })
           .eq("id", expediente.id);
 
-        // Clasificación con DeepSeek
+        // Clasificación con DeepSeek (fetch hacia /api/ia/clasificar)
         try {
-          const result = await procesarIA({
-            expediente_id: expediente.id,
-            textoExtraido,
+          const baseUrl =
+            process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000";
+
+          const response = await fetch(`${baseUrl}/api/ia/clasificar`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              expediente_id: expediente.id,
+              textoExtraido,
+            }),
           });
 
+          const result = await response.json();
           console.log("Respuesta IA:", result);
         } catch (iaError) {
           console.error("Error llamando a IA:", iaError);

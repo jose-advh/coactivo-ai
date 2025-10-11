@@ -5,7 +5,11 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function procesarIA({ expediente_id, textoExtraido }) {
-  const prompt = `
+  try {
+    // Limitar texto
+    const textoLimitado = textoExtraido.slice(0, 10000);
+
+    const prompt = `
 Eres un abogado experto en cobro coactivo colombiano.
 Analiza el siguiente texto y devuelve únicamente un objeto JSON, sin explicaciones ni comentarios.
 
@@ -21,9 +25,8 @@ Luego clasifica el título según:
 - AMARILLO = con inconsistencias menores
 - ROJO = no válido
 
-Devuelve **únicamente JSON válido**, con este formato exacto, no añadas texto extra ni nada, solo el JSON!:
+Devuelve **únicamente JSON válido**, con este formato exacto (sin texto adicional):
 
-EN OBSERVACION DEBES AÑADIR UNA OBSERVACION SOBRE EL DOCUMENTO SOBRE SI ES VERDE, AMARILLO o ROJO!
 {
   "nombre": "",
   "entidad": "",
@@ -37,12 +40,13 @@ EN OBSERVACION DEBES AÑADIR UNA OBSERVACION SOBRE EL DOCUMENTO SOBRE SI ES VERD
 
 Texto para analizar:
 """
-${textoExtraido}
+${textoLimitado}
 """
 `;
 
-  try {
-    // Llamado a la API de DeepSeek
+    console.log("Enviando texto a DeepSeek...");
+
+    // Llamado a la API de OpenRouter
     const response = await fetch(
       "https://openrouter.ai/api/v1/chat/completions",
       {
@@ -65,8 +69,17 @@ ${textoExtraido}
     );
 
     const data = await response.json();
+
+    if (data?.error) {
+      console.error("Error de OpenRouter:", data.error);
+      throw new Error(data.error.message || "Error en OpenRouter");
+    }
+
     const textoIA = data?.choices?.[0]?.message?.content?.trim() || "{}";
 
+    console.log("Respuesta IA (cruda):", textoIA.substring(0, 200));
+
+    // Limpieza del texto
     const limpio = textoIA
       .replace(/```json|```/g, "")
       .replace(/<\｜.*?\｜>/g, "")
@@ -76,7 +89,8 @@ ${textoExtraido}
     let resultado;
     try {
       resultado = JSON.parse(limpio);
-    } catch {
+    } catch (err) {
+      console.warn("No se pudo parsear JSON, respuesta sucia:", limpio);
       resultado = {
         error: "Respuesta no parseable",
         semaforo: "rojo",
@@ -84,15 +98,17 @@ ${textoExtraido}
       };
     }
 
-    // Actualiza el expediente
+    // Actualizar Supabase
     await supabaseAdmin
       .from("expedientes")
       .update({
-        titulo: resultado.tipo_titulo,
+        titulo: resultado.tipo_titulo || null,
         semaforo: resultado.semaforo?.toLowerCase() || "pendiente",
         observaciones: resultado.observacion || "",
       })
       .eq("id", expediente_id);
+
+    console.log("Clasificación guardada en Supabase");
 
     return { ok: true, resultado };
   } catch (error) {
@@ -101,13 +117,13 @@ ${textoExtraido}
       ok: false,
       resultado: {
         semaforo: "rojo",
-        observacion: "Error al conectar con la IA",
+        observacion: "Error al conectar con la IA o procesar respuesta",
       },
     };
   }
 }
 
-// Endpoint HTTP
+//
 export async function POST(req) {
   try {
     const body = await req.json();
