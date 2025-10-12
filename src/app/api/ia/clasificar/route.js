@@ -124,16 +124,3 @@ ${textoLimitado}
 }
 
 //
-export async function POST(req) {
-  try {
-    const body = await req.json();
-    const result = await procesarIA(body);
-    return NextResponse.json(result);
-  } catch (error) {
-    console.error("Error general en /ia/clasificar:", error);
-    return NextResponse.json({
-      ok: false,
-      mensaje: "Error interno al procesar el documento",
-    });
-  }
-}

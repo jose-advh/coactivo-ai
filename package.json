@@ -20,6 +20,7 @@
     "next": "15.5.3",
     "pdf-extraction": "^1.0.2",
     "pdf-parse": "^2.2.6",
+    "pdf2json": "^4.0.0",
     "pdfjs-dist": "^5.4.296",
     "react": "19.1.0",
     "react-dom": "19.1.0",
