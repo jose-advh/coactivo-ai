@@ -1,121 +1,105 @@
-import mammoth from "mammoth";
+import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
-import PDFParser from "pdf2json";
+import { clasificarIA } from "@/lib/ia/clasificarIA";
+import { procesarArchivo } from "@/lib/documents/procesarArchivos";
+
 export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
 /**
- * Extrae el texto de un archivo PDF usando pdf2json.
- * @param {Buffer} buffer - Contenido del archivo PDF.
- * @returns {Promise<string>} - Texto extraído.
+ * Endpoint principal: sube el archivo, crea expediente y ejecuta procesamiento en background.
  */
-
-async function extraerTextoPDF(buffer) {
-  return new Promise((resolve, reject) => {
-    const pdfParser = new PDFParser();
-
-    pdfParser.on("pdfParser_dataError", (errData) =>
-      reject(errData.parserError)
-    );
-
-    pdfParser.on("pdfParser_dataReady", (pdfData) => {
-      try {
-        const texto = pdfData.Pages.map((page) =>
-          page.Texts.map((t) =>
-            decodeURIComponent(t.R.map((r) => r.T).join(""))
-          ).join(" ")
-        ).join("\n");
-        resolve(texto);
-      } catch (e) {
-        reject(e);
-      }
-    });
-
-    pdfParser.parseBuffer(buffer);
-  });
-}
-
-/**
- * Procesa un archivo: descarga desde Supabase, extrae texto (PDF o DOCX),
- * actualiza el expediente, y llama a la IA para clasificar.
- *
- * @param {Object} params
- * @param {string} params.expediente_id - ID del expediente en Supabase.
- * @param {string} params.archivo_path - Ruta del archivo en el bucket.
- * @returns {Promise<{ ok: boolean, mensaje: string, detalle?: string }>}
- */
-export async function procesarArchivo({ expediente_id, archivo_path }) {
+export async function POST(req) {
   try {
-    if (!expediente_id || !archivo_path) {
-      throw new Error("Faltan parámetros: expediente_id o archivo_path");
+    // Recibir archivo y user_id desde FormData (más seguro que JSON)
+    const formData = await req.formData();
+    const file = formData.get("file");
+    const user_id = formData.get("user_id");
+
+    if (!file || !user_id) {
+      throw new Error("Faltan parámetros: file o user_id");
     }
 
-    console.log("Descargando archivo desde Supabase:", archivo_path);
+    // Generar nombre y ruta única del archivo
+    const fileExt = file.name.split(".").pop();
+    const fileName = `${Date.now()}_${Math.random()
+      .toString(36)
+      .slice(2)}.${fileExt}`;
+    const archivo_path = `${user_id}/${fileName}`;
 
-    const { data: file, error: downloadError } = await supabaseAdmin.storage
-      .from("expedientes")
-      .download(archivo_path);
+    console.log("Subiendo archivo a Supabase Storage:", archivo_path);
 
-    if (downloadError) throw downloadError;
-
-    if (downloadError) {
-      console.error("❌ Error al descargar desde Supabase:", downloadError);
-      throw downloadError;
-    }
-
-    if (!file) {
-      console.error("❌ No se encontró el archivo en Supabase:", archivo_path);
-      throw new Error("Archivo no encontrado");
-    }
-
-    console.log(
-      "✅ Archivo descargado correctamente:",
-      file.type,
-      file.size || file.byteLength
-    );
-
+    // Convertir el archivo en Buffer
     const arrayBuffer = await file.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
 
-    console.log("Buffer listo:", buffer.length, "bytes");
-
-    let textoExtraido = "";
-    if (archivo_path.toLowerCase().endsWith(".pdf")) {
-      console.log("Intentando extraer texto PDF...");
-      textoExtraido = await extraerTextoPDF(buffer);
-      console.log("✅ PDF procesado con éxito");
-    } else if (archivo_path.toLowerCase().endsWith(".docx")) {
-      const { value } = await mammoth.extractRawText({ buffer });
-      textoExtraido = value;
-    } else {
-      throw new Error("Formato no soportado (solo PDF o DOCX)");
-    }
-
-    console.log("Texto extraído (primeros 500 caracteres):");
-    console.log(textoExtraido.substring(0, 500));
-
-    // Actualiza el estado en la base de datos
-    await supabaseAdmin
+    // Subir archivo al bucket "expedientes"
+    const { error: uploadError } = await supabaseAdmin.storage
       .from("expedientes")
-      .update({ semaforo: "procesado" })
-      .eq("id", expediente_id);
+      .upload(archivo_path, buffer, {
+        contentType: file.type || "application/octet-stream",
+        upsert: true,
+      });
 
-    // Importa la función de IA directamente en lugar de usar fetch
-    const { clasificarIA } = await import("@/lib/ia/clasificarIA");
+    if (uploadError) throw uploadError;
 
-    // Ejecuta la IA directamente sin hacer una petición HTTP
-    const result = await clasificarIA({ expediente_id, textoExtraido });
+    console.log("Archivo subido correctamente a Storage.");
 
-    console.log("Resultado de clasificación IA:", result);
+    // Crear expediente en la base de datos
+    const { data: expediente, error: insertError } = await supabaseAdmin
+      .from("expedientes")
+      .insert({
+        user_id,
+        archivo_path,
+        semaforo: "procesando",
+      })
+      .select()
+      .single();
 
-    return {
-      textoExtraido,
-    };
+    if (insertError) throw insertError;
+    console.log(`Expediente ${expediente.id} creado.`);
+
+    // Ejecutar procesamiento en background
+    (async () => {
+      try {
+        console.log(`Iniciando procesamiento de archivo: ${archivo_path}`);
+
+        const { textoExtraido } = await procesarArchivo({
+          expediente_id: expediente.id,
+          archivo_path,
+        });
+
+        const resultadoIA = await clasificarIA({
+          expediente_id: expediente.id,
+          textoExtraido,
+        });
+
+        console.log("Resultado IA:", resultadoIA);
+      } catch (err) {
+        console.error("Error en ejecución background:", err);
+        await supabaseAdmin
+          .from("expedientes")
+          .update({
+            semaforo: "rojo",
+            observaciones: "Error en procesamiento interno",
+          })
+          .eq("id", expediente.id);
+      }
+    })();
+
+    // Responder inmediatamente
+    return NextResponse.json({
+      ok: true,
+      mensaje: "Expediente creado y procesamiento en curso.",
+      expediente_id: expediente.id,
+      archivo_path,
+    });
   } catch (error) {
-    console.error("Error en procesarArchivo:", error);
-    return {
+    console.error("Error en /api/expedientes:", error);
+    return NextResponse.json({
       ok: false,
-      mensaje: "Error procesando archivo",
+      mensaje: "Error al crear expediente o subir archivo",
       detalle: error.message,
-    };
+    });
   }
 }
