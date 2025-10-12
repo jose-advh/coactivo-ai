@@ -77,7 +77,7 @@ export async function POST(req) {
       ? `https://${process.env.VERCEL_URL}`
       : "http://localhost:3000";
 
-    const response = await fetch(`${baseUrl}/api/ia/clasificar`, {
+    fetch(`${baseUrl}/api/ia/clasificar`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ expediente_id, textoExtraido }),
