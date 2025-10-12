@@ -1,4 +1,5 @@
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
+export const runtime = "nodejs";
 
 /**
  * Clasifica el contenido de un expediente usando la IA de DeepSeek vía OpenRouter.

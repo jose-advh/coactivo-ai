@@ -1,12 +1,14 @@
 import mammoth from "mammoth";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import PDFParser from "pdf2json";
+export const runtime = "nodejs";
 
 /**
  * Extrae el texto de un archivo PDF usando pdf2json.
  * @param {Buffer} buffer - Contenido del archivo PDF.
  * @returns {Promise<string>} - Texto extraído.
  */
+
 async function extraerTextoPDF(buffer) {
   return new Promise((resolve, reject) => {
     const pdfParser = new PDFParser();
