@@ -28,10 +28,12 @@ export async function POST(req) {
     if (insertError) throw insertError;
 
     // Determinar URL base para llamar la API interna
-    const apiURL = process.env.API_URL;
+    const baseUrl = process.env.VERCEL_URL
+      ? `https://${process.env.VERCEL_URL}`
+      : "http://localhost:3000";
 
     // Ejecutar en background: enviar tarea a /api/procesar-archivo
-    fetch(`${apiURL}/api/procesar-archivo`, {
+    fetch(`${baseUrl}/api/procesar-archivo`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({

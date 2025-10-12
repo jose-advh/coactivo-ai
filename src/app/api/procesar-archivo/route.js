@@ -73,9 +73,11 @@ export async function POST(req) {
       .eq("id", expediente_id);
 
     // Llamar a la ruta de IA para clasificar
-    const apiURL = process.env.API_URL;
+    const baseUrl = process.env.VERCEL_URL
+      ? `https://${process.env.VERCEL_URL}`
+      : "http://localhost:3000";
 
-    const response = await fetch(`${apiURL}/api/ia/clasificar`, {
+    const response = await fetch(`${baseUrl}/api/ia/clasificar`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ expediente_id, textoExtraido }),
