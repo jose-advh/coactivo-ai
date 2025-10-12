@@ -13,20 +13,43 @@ import {
 import { Button } from "@/components/ui/button";
 import { uploadFile } from "@/lib/storage";
 
+/**
+ * Componente para subir archivos al bucket de Supabase.
+ * - Permite seleccionar un archivo PDF o DOCX.
+ * - Lo sube al bucket 'expedientes'.
+ * - Envía la información a la API para procesarlo en segundo plano.
+ */
 export const UploadFiles = () => {
-  const { user } = useUser();
-  const [open, setOpen] = useState(false);
-  const [file, setFile] = useState(null);
-  const [loading, setLoading] = useState(false);
+  const { user } = useUser(); // Hook que obtiene el usuario actual
+  const [open, setOpen] = useState(false); // Control del modal
+  const [file, setFile] = useState(null); // Archivo seleccionado
+  const [loading, setLoading] = useState(false); // Estado de carga
 
+  /**
+   * Maneja el evento de carga del archivo
+   * 1. Verifica que haya un archivo seleccionado.
+   * 2. Lo sube al bucket de Supabase.
+   * 3. Llama a la API de expedientes para procesarlo.
+   */
   const handleUpload = async () => {
-    if (!file) return alert("Selecciona un archivo primero");
+    if (!file) {
+      alert("Selecciona un archivo primero.");
+      return;
+    }
+
+    if (!user?.id) {
+      alert("Usuario no autenticado.");
+      return;
+    }
 
     setLoading(true);
 
     try {
+      // Subir archivo al bucket 'expedientes'
       const { path } = await uploadFile(file, "expedientes");
-      await fetch("/api/expedientes", {
+
+      // Enviar datos del archivo al backend para procesarlo
+      const response = await fetch("/api/expedientes", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -35,12 +58,18 @@ export const UploadFiles = () => {
         }),
       });
 
-      alert(`Archivo subido!`);
+      const result = await response.json();
+
+      if (!response.ok || !result.ok) {
+        throw new Error(result.mensaje || "Error al procesar el expediente.");
+      }
+
+      alert("Archivo subido correctamente. Procesando en segundo plano...");
       setOpen(false);
       setFile(null);
-    } catch (err) {
-      console.error(err);
-      alert("Error al subir archivo");
+    } catch (error) {
+      console.error("Error al subir archivo:", error);
+      alert("Hubo un error al subir o procesar el archivo.");
     } finally {
       setLoading(false);
     }
@@ -48,6 +77,7 @@ export const UploadFiles = () => {
 
   return (
     <>
+      {/* Botón principal para abrir el modal */}
       <button
         type="button"
         onClick={() => setOpen(true)}
@@ -57,18 +87,21 @@ export const UploadFiles = () => {
           src="/icons/upload-icon.svg"
           width={60}
           height={60}
-          alt="Logo de CoactivoAI"
+          alt="Subir archivo"
         />
       </button>
 
+      {/* Modal para subir archivo */}
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Subir Archivo</DialogTitle>
           </DialogHeader>
 
+          {/* Selector de archivo */}
           <input
             type="file"
+            accept=".pdf,.docx"
             onChange={(e) => setFile(e.target.files[0])}
             className="mt-4"
           />

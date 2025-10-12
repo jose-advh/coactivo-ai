@@ -5,32 +5,31 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function POST(req) {
-  const body = await req.json();
-  return NextResponse.json(await procesarIA(body));
+  const { expediente_id, textoExtraido } = await req.json();
+  return NextResponse.json(await procesarIA({ expediente_id, textoExtraido }));
 }
 
+// Procesa texto con DeepSeek a través de OpenRouter
 async function procesarIA({ expediente_id, textoExtraido }) {
   try {
-    // Limitar texto
     const textoLimitado = textoExtraido.slice(0, 10000);
 
     const prompt = `
 Eres un abogado experto en cobro coactivo colombiano.
-Analiza el siguiente texto y devuelve únicamente un objeto JSON, sin explicaciones ni comentarios.
+Analiza el siguiente texto y devuelve únicamente un objeto JSON.
 
 Debes extraer:
 - nombre del deudor
 - entidad
 - valor total
 - fechas (resolución y ejecutoria)
-- tipo de título (resolución, sentencia, etc.)
-
-Luego clasifica el título según:
+- tipo de título
+Y clasificar:
 - VERDE = válido y ejecutoriado
-- AMARILLO = con inconsistencias menores
+- AMARILLO = inconsistencias menores
 - ROJO = no válido
 
-Devuelve **únicamente JSON válido**, con este formato exacto (sin texto adicional):
+Formato exacto:
 
 {
   "nombre": "",
@@ -43,15 +42,13 @@ Devuelve **únicamente JSON válido**, con este formato exacto (sin texto adicio
   "observacion": ""
 }
 
-Texto para analizar:
+Texto:
 """
 ${textoLimitado}
-"""
-`;
+"""`;
 
     console.log("Enviando texto a DeepSeek...");
 
-    // Llamado a la API de OpenRouter
     const response = await fetch(
       "https://openrouter.ai/api/v1/chat/completions",
       {
@@ -73,30 +70,25 @@ ${textoLimitado}
       }
     );
 
-    console.log("Status de respuesta:", response.status);
+    console.log("Status respuesta:", response.status);
     const data = await response.json();
 
     if (data?.error) {
-      console.error("Error de OpenRouter:", data.error);
       throw new Error(data.error.message || "Error en OpenRouter");
     }
 
     const textoIA = data?.choices?.[0]?.message?.content?.trim() || "{}";
 
-    console.log("Respuesta IA (cruda):", textoIA.substring(0, 200));
-
-    // Limpieza del texto
+    // Limpieza de respuesta
     const limpio = textoIA
       .replace(/```json|```/g, "")
-      .replace(/<\｜.*?\｜>/g, "")
       .replace(/[^\{]*({[\s\S]*})[^\}]*$/, "$1")
       .trim();
 
     let resultado;
     try {
       resultado = JSON.parse(limpio);
-    } catch (err) {
-      console.warn("No se pudo parsear JSON, respuesta sucia:", limpio);
+    } catch {
       resultado = {
         error: "Respuesta no parseable",
         semaforo: "rojo",
@@ -104,7 +96,7 @@ ${textoLimitado}
       };
     }
 
-    // Actualizar Supabase
+    // Actualizar expediente en Supabase
     await supabaseAdmin
       .from("expedientes")
       .update({
@@ -115,7 +107,6 @@ ${textoLimitado}
       .eq("id", expediente_id);
 
     console.log("Clasificación guardada en Supabase");
-
     return { ok: true, resultado };
   } catch (error) {
     console.error("Error en procesarIA:", error);
@@ -128,5 +119,3 @@ ${textoLimitado}
     };
   }
 }
-
-//
