@@ -78,17 +78,8 @@ export async function procesarArchivo({ expediente_id, archivo_path }) {
       .update({ semaforo: "procesado" })
       .eq("id", expediente_id);
 
-    // Importa la función de IA directamente en lugar de usar fetch
-    const { clasificarIA } = await import("@/lib/ia/clasificarIA");
-
-    // Ejecuta la IA directamente sin hacer una petición HTTP
-    const result = await clasificarIA({ expediente_id, textoExtraido });
-
-    console.log("Resultado de clasificación IA:", result);
-
     return {
-      ok: true,
-      mensaje: "Archivo procesado y clasificado correctamente.",
+      textoExtraido,
     };
   } catch (error) {
     console.error("Error en procesarArchivo:", error);

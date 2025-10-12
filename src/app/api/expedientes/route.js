@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
+import { clasificarIA } from "@/lib/ia/clasificarIA";
 import { procesarArchivo } from "@/lib/documents/procesarArchivos";
-import { clasificarIA } from "@/lib/documents/clasificarIA";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -39,7 +39,7 @@ export async function POST(req) {
         console.log(`Iniciando procesamiento de archivo: ${archivo_path}`);
 
         // Extraer texto del documento (PDF o DOCX)
-        const textoExtraido = await procesarArchivo({
+        const { textoExtraido } = await procesarArchivo({
           expediente_id: expediente.id,
           archivo_path,
         });
