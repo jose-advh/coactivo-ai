@@ -85,6 +85,10 @@ export async function POST(req) {
           .eq("id", expediente.id);
 
         try {
+          console.log(
+            "Listo para llamar IA, URL:",
+            `${baseUrl}/api/ia/clasificar`
+          );
           const baseUrl = process.env.VERCEL_URL
             ? `https://${process.env.VERCEL_URL}`
             : "http://localhost:3000";
