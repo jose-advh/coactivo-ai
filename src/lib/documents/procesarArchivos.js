@@ -57,13 +57,32 @@ export async function procesarArchivo({ expediente_id, archivo_path }) {
 
     if (downloadError) throw downloadError;
 
+    if (downloadError) {
+      console.error("❌ Error al descargar desde Supabase:", downloadError);
+      throw downloadError;
+    }
+
+    if (!file) {
+      console.error("❌ No se encontró el archivo en Supabase:", archivo_path);
+      throw new Error("Archivo no encontrado");
+    }
+
+    console.log(
+      "✅ Archivo descargado correctamente:",
+      file.type,
+      file.size || file.byteLength
+    );
+
     const arrayBuffer = await file.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
 
-    let textoExtraido = "";
+    console.log("Buffer listo:", buffer.length, "bytes");
 
+    let textoExtraido = "";
     if (archivo_path.toLowerCase().endsWith(".pdf")) {
+      console.log("Intentando extraer texto PDF...");
       textoExtraido = await extraerTextoPDF(buffer);
+      console.log("✅ PDF procesado con éxito");
     } else if (archivo_path.toLowerCase().endsWith(".docx")) {
       const { value } = await mammoth.extractRawText({ buffer });
       textoExtraido = value;
