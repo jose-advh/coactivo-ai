@@ -33,7 +33,7 @@ export async function POST(req) {
       : "http://localhost:3000";
 
     // Ejecutar en background: enviar tarea a /api/procesar-archivo
-    fetch(`${baseUrl}/api/procesar-archivo`, {
+    fetch("/api/procesar-archivo", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
