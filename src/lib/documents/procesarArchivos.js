@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { clasificarIA } from "@/lib/ia/clasificarIA";
-import { procesarArchivo } from "@/lib/documents/procesarArchivos";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
