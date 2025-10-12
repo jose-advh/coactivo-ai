@@ -4,7 +4,12 @@ import { supabaseAdmin } from "@/lib/supabaseAdmin";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-export async function procesarIA({ expediente_id, textoExtraido }) {
+export async function POST(req) {
+  const body = await req.json();
+  return NextResponse.json(await procesarIA(body));
+}
+
+async function procesarIA({ expediente_id, textoExtraido }) {
   try {
     // Limitar texto
     const textoLimitado = textoExtraido.slice(0, 10000);

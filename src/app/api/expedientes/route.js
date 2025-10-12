@@ -1,5 +1,4 @@
 import { NextResponse } from "next/server";
-import { procesarIA } from "../ia/clasificar/route";
 import mammoth from "mammoth";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import PDFParser from "pdf2json";
@@ -86,11 +85,20 @@ export async function POST(req) {
           .eq("id", expediente.id);
 
         try {
-          const result = await procesarIA({
-            expediente_id: expediente.id,
-            textoExtraido,
+          const baseUrl = process.env.VERCEL_URL
+            ? `https://${process.env.VERCEL_URL}`
+            : "http://localhost:3000";
+
+          const response = await fetch(`${baseUrl}/api/ia/clasificar`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              expediente_id: expediente.id,
+              textoExtraido,
+            }),
           });
 
+          const result = await response.json();
           console.log("Respuesta IA:", result);
         } catch (iaError) {
           console.error("Error llamando a IA:", iaError);
