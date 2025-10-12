@@ -73,6 +73,7 @@ ${textoLimitado}
       }
     );
 
+    console.log("Status de respuesta:", response.status);
     const data = await response.json();
 
     if (data?.error) {
