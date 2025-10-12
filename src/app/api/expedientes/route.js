@@ -1,10 +1,15 @@
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
+import { procesarArchivo } from "@/lib/documents/procesarArchivos";
+import { clasificarIA } from "@/lib/documents/clasificarIA";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-// Crea un expediente y delega su procesamiento
+/**
+ * Endpoint principal: crea un expediente y ejecuta todo el flujo
+ * de procesamiento (descarga, extracción de texto y clasificación IA).
+ */
 export async function POST(req) {
   try {
     const body = await req.json();
@@ -14,7 +19,7 @@ export async function POST(req) {
       throw new Error("Faltan parámetros: archivo_path o user_id");
     }
 
-    // Crear el expediente inicial en Supabase
+    // Crear expediente en Supabase
     const { data: expediente, error: insertError } = await supabaseAdmin
       .from("expedientes")
       .insert({
@@ -26,25 +31,42 @@ export async function POST(req) {
       .single();
 
     if (insertError) throw insertError;
+    console.log(`Expediente ${expediente.id} creado.`);
 
-    // Determinar URL base para llamar la API interna
-    const baseUrl = process.env.VERCEL_URL
-      ? `https://${process.env.VERCEL_URL}`
-      : "http://localhost:3000";
+    // Ejecutar procesamiento y clasificación en background
+    (async () => {
+      try {
+        console.log(`Iniciando procesamiento de archivo: ${archivo_path}`);
 
-    // Ejecutar en background: enviar tarea a /api/procesar-archivo
-    fetch(`${baseUrl}/api/procesar-archivo`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        expediente_id: expediente.id,
-        archivo_path,
-      }),
-    }).catch((err) => console.error("Error al iniciar procesamiento:", err));
+        // Extraer texto del documento (PDF o DOCX)
+        const textoExtraido = await procesarArchivo({
+          expediente_id: expediente.id,
+          archivo_path,
+        });
 
+        // Enviar a la IA para clasificar y actualizar expediente
+        const resultadoIA = await clasificarIA({
+          expediente_id: expediente.id,
+          textoExtraido,
+        });
+
+        console.log("Resultado IA:", resultadoIA);
+      } catch (err) {
+        console.error("Error en ejecución background:", err);
+        await supabaseAdmin
+          .from("expedientes")
+          .update({
+            semaforo: "rojo",
+            observaciones: "Error en procesamiento interno",
+          })
+          .eq("id", expediente.id);
+      }
+    })();
+
+    // Responder inmediatamente al frontend
     return NextResponse.json({
       ok: true,
-      mensaje: "Expediente creado y procesamiento iniciado.",
+      mensaje: "Expediente creado y procesamiento en curso.",
       expediente_id: expediente.id,
     });
   } catch (error) {
