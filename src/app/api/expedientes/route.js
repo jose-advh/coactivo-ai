@@ -62,16 +62,22 @@ export async function POST(req) {
 
         if (downloadError) throw downloadError;
 
+        console.log("1");
+
         const arrayBuffer = await file.arrayBuffer();
         const buffer = Buffer.from(arrayBuffer);
 
         let textoExtraido = "";
+
+        console.log("2");
 
         if (archivo_path.toLowerCase().endsWith(".pdf")) {
           textoExtraido = await extraerTextoPDF(buffer);
         } else if (archivo_path.toLowerCase().endsWith(".docx")) {
           const { value } = await mammoth.extractRawText({ buffer });
           textoExtraido = value;
+
+          console.log("3");
         } else {
           throw new Error("Formato no soportado (solo PDF o DOCX)");
         }
