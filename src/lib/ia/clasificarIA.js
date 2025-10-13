@@ -16,37 +16,37 @@ export async function clasificarIA({ expediente_id, textoExtraido }) {
     const textoLimitado = textoExtraido.slice(0, 10000);
 
     const prompt = `
-Eres un abogado experto en cobro coactivo colombiano.
-Analiza el siguiente texto y devuelve únicamente un objeto JSON.
+      Eres un abogado experto en cobro coactivo colombiano.
+      Analiza el siguiente texto y devuelve únicamente un objeto JSON.
 
-Debes extraer:
-- nombre del deudor
-- entidad
-- valor total
-- fechas (resolución y ejecutoria)
-- tipo de título
-Y clasificar:
-- VERDE = válido y ejecutoriado
-- AMARILLO = inconsistencias menores
-- ROJO = no válido
+      Debes extraer:
+      - nombre del deudor
+      - entidad
+      - valor total
+      - fechas (resolución y ejecutoria)
+      - tipo de título
+      Y clasificar:
+      - VERDE = válido y ejecutoriado
+      - AMARILLO = inconsistencias menores
+      - ROJO = no válido
 
-Formato exacto:
+      Formato exacto:
 
-{
-  "nombre": "",
-  "entidad": "",
-  "valor": "",
-  "fecha_resolucion": "",
-  "fecha_ejecutoria": "",
-  "tipo_titulo": "",
-  "semaforo": "",
-  "observacion": ""
-}
+      {
+        "nombre": "",
+        "entidad": "",
+        "valor": "",
+        "fecha_resolucion": "",
+        "fecha_ejecutoria": "",
+        "tipo_titulo": "",
+        "semaforo": "",
+        "observacion": ""
+      }
 
-Texto:
-"""
-${textoLimitado}
-"""`;
+      Texto:
+      """
+      ${textoLimitado}
+      """`;
 
     console.log("Enviando texto a DeepSeek...");
 
