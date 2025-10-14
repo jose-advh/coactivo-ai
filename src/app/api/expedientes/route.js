@@ -1,16 +1,24 @@
 // /app/api/expedientes/route.js
 import { NextResponse } from "next/server";
+import { supabaseAdmin } from "@/lib/supabaseAdmin";
 
 export async function POST(req) {
   try {
     const body = await req.json();
     const { archivo_path, user_id } = body;
 
-    // 1️⃣ Crear expediente en Supabase
-    const expediente = await crearExpedienteEnSupabase({
-      archivo_path,
-      user_id,
-    });
+    const { data: expediente, error: insertError } = await supabaseAdmin
+      .from("expedientes")
+      .insert({
+        user_id,
+        archivo_path,
+        semaforo: "procesando",
+      })
+      .select()
+      .single();
+
+    if (insertError) throw insertError;
+    console.log(`Expediente ${expediente.id} creado.`);
 
     // 2️⃣ Llamar al worker remoto
     await fetch(process.env.WORKER_URL + "/procesar", {
