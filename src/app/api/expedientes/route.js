@@ -20,7 +20,7 @@ export async function POST(req) {
     if (insertError) throw insertError;
     console.log(`Expediente ${expediente.id} creado.`);
 
-    // 2️⃣ Llamar al worker remoto
+    // Llamar al worker remoto
     await fetch(process.env.WORKER_URL + "/procesar", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -39,13 +39,4 @@ export async function POST(req) {
       { status: 500 }
     );
   }
-}
-
-async function crearExpedienteEnSupabase({ archivo_path, user_id }) {
-  // Ejemplo de guardar en la BD vía Supabase client/admin
-  return {
-    id: crypto.randomUUID(),
-    archivo_path,
-    user_id,
-  };
 }
