@@ -93,9 +93,11 @@ export const UploadFiles = () => {
 
       {/* Modal para subir archivo */}
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent>
+        <DialogContent className="w-[90vw] max-w-lg max-h-[80vh] overflow-y-auto p-6 rounded-2xl">
           <DialogHeader>
-            <DialogTitle>Subir Archivo</DialogTitle>
+            <DialogTitle className="text-lg font-semibold text-gray-800">
+              Subir Archivo
+            </DialogTitle>
           </DialogHeader>
 
           {/* Selector de archivo */}
@@ -103,14 +105,22 @@ export const UploadFiles = () => {
             type="file"
             accept=".pdf,.docx"
             onChange={(e) => setFile(e.target.files[0])}
-            className="mt-4"
+            className="mt-4 w-full"
           />
 
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setOpen(false)}>
+          <DialogFooter className="flex flex-col sm:flex-row gap-3 sm:gap-2 justify-end mt-6">
+            <Button
+              variant="outline"
+              onClick={() => setOpen(false)}
+              className="w-full sm:w-auto"
+            >
               Cancelar
             </Button>
-            <Button onClick={handleUpload} disabled={loading}>
+            <Button
+              onClick={handleUpload}
+              disabled={loading}
+              className="w-full sm:w-auto"
+            >
               {loading ? "Subiendo..." : "Confirmar"}
             </Button>
           </DialogFooter>
