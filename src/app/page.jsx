@@ -33,7 +33,7 @@ export default function Home() {
     if (error) {
       setModal({
         open: true,
-        title: "Error ❌",
+        title: "Error",
         message: error.message,
         type: "error",
       });
