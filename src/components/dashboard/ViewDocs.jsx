@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
+import { eliminarExpediente } from "@/lib/expedientes"; // Función de eliminación aislada (principio de responsabilidad única)
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -13,33 +14,33 @@ import {
 } from "@/components/ui/dialog";
 
 /**
- * ViewDocs
+ * Componente: ViewDocs
  *
- * Lista los expedientes del usuario logueado desde la tabla "expedientes".
- * Si un expediente tiene un mandamiento generado, muestra la opción de descargarlo.
+ * Responsabilidad única:
+ * Renderizar la lista de expedientes del usuario autenticado y permitir acciones sobre ellos (descargar, ver observaciones y eliminar).
  */
 export const ViewDocs = () => {
-  const [files, setFiles] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [selectedExpediente, setSelectedExpediente] = useState(null);
-  const [isModalOpen, setIsModalOpen] = useState(false);
+  // Estados del componente
+  const [files, setFiles] = useState([]); // Almacena los expedientes obtenidos
+  const [loading, setLoading] = useState(true); // Controla el estado de carga
+  const [selectedExpediente, setSelectedExpediente] = useState(null); // Expediente actual mostrado en el modal
+  const [isModalOpen, setIsModalOpen] = useState(false); // Estado del modal de observaciones
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false); // Estado del modal de eliminación
+  const [expedienteToDelete, setExpedienteToDelete] = useState(null); // Expediente pendiente de eliminar
 
   /**
-   * Obtiene los expedientes del usuario autenticado.
+   * Obtiene los expedientes asociados al usuario autenticado desde la base de datos.
+   *
+   * Regla de Clean Code: función con una sola responsabilidad — leer datos desde Supabase.
    */
   const fetchUserFiles = async () => {
     try {
       setLoading(true);
 
-      // Obtener sesión actual
-      const { data: sessionData, error: sessionError } =
-        await supabase.auth.getSession();
-      if (sessionError) throw sessionError;
-
+      const { data: sessionData } = await supabase.auth.getSession();
       const user = sessionData?.session?.user;
       if (!user) return;
 
-      // Consultar expedientes del usuario
       const { data: expedientes, error } = await supabase
         .from("expedientes")
         .select("id, archivo_path, observaciones, semaforo, mandamiento_path")
@@ -48,7 +49,7 @@ export const ViewDocs = () => {
 
       if (error) throw error;
 
-      // Formatear datos
+      // Transformación de datos crudos a un formato legible para el componente
       setFiles(
         (expedientes || []).map((exp) => ({
           id: exp.id,
@@ -67,30 +68,25 @@ export const ViewDocs = () => {
   };
 
   /**
-   * Descarga un archivo del bucket correcto en Supabase Storage.
+   * Genera un enlace firmado para descargar un archivo del bucket correspondiente.
    *
-   * Detecta automáticamente si el archivo pertenece a "expedientes" o "mandamientos".
+   * Principio: separar la lógica de negocio de la presentación.
    */
   const handleDownload = async (filePath) => {
     try {
-      if (!filePath) throw new Error("Ruta de archivo no válida.");
-
-      // Detectar bucket según la ruta o tipo de archivo
       const bucket = filePath.startsWith("mandamientos/")
         ? "mandamientos"
         : "expedientes";
 
-      // Asegurar que no haya slashes iniciales
       const cleanPath = filePath.replace(/^\/+/, "");
 
-      // Generar URL firmada
       const { data, error } = await supabase.storage
         .from(bucket)
         .createSignedUrl(cleanPath, 60 * 60);
 
       if (error) throw error;
 
-      // Crear enlace temporal para descarga
+      // Descarga controlada sin recargar la página
       const a = document.createElement("a");
       a.href = data.signedUrl;
       a.download = cleanPath.split("/").pop();
@@ -103,46 +99,76 @@ export const ViewDocs = () => {
   };
 
   /**
-   * Abre el modal con los detalles y observaciones de un expediente.
+   * Muestra el modal de observaciones para el expediente seleccionado.
    */
   const handleOpenObservaciones = (expediente) => {
     setSelectedExpediente(expediente);
     setIsModalOpen(true);
   };
 
+  /**
+   * Elimina el expediente seleccionado de la base de datos y actualiza la lista.
+   *
+   * Regla de Clean Code: manejar errores de forma clara, sin mezclar lógica de UI y negocio.
+   */
+  const handleDeleteExpediente = async () => {
+    if (!expedienteToDelete) return;
+
+    const result = await eliminarExpediente(expedienteToDelete.id);
+
+    if (result.success) {
+      // Se elimina visualmente de la lista tras confirmación
+      setFiles((prev) =>
+        prev.filter((file) => file.id !== expedienteToDelete.id)
+      );
+      setDeleteModalOpen(false);
+    } else {
+      alert("Error al eliminar: " + result.error);
+    }
+  };
+
+  // Efecto: se ejecuta una vez al montar el componente
   useEffect(() => {
     fetchUserFiles();
   }, []);
 
+  /**
+   * Render principal.
+   *
+   * Principio: la UI debe ser declarativa, limpia y con bloques bien delimitados.
+   */
   return (
     <div className="w-full md:w-[100%] bg-white rounded-xl shadow-md border border-gray-200 p-4">
       <h2 className="text-lg text-center font-semibold mb-3 text-gray-800">
         Mis expedientes
       </h2>
 
-      {/* Mostrar estado de carga */}
+      {/* Estado: cargando */}
       {loading ? (
         <p className="text-center text-gray-500 py-4">Cargando archivos...</p>
       ) : files.length === 0 ? (
+        // Estado: lista vacía
         <p className="text-center text-gray-500 py-4">
           No tienes expedientes subidos.
         </p>
       ) : (
+        // Estado: lista con expedientes disponibles
         <ul className="divide-y divide-gray-200">
           {files.map((file) => (
             <li
               key={file.id}
               className="flex flex-col sm:flex-row sm:items-center justify-between py-3 hover:bg-gray-50 transition-colors duration-200 px-2 rounded-lg overflow-hidden"
             >
-              {/* Nombre del expediente */}
+              {/* Información del expediente */}
               <div className="flex flex-col mb-2 sm:mb-0">
                 <span className="font-medium text-gray-700 truncate">
                   {file.name}
                 </span>
               </div>
 
-              {/* Botones */}
+              {/* Acciones del expediente */}
               <div className="flex flex-wrap sm:flex-nowrap items-center gap-2">
+                {/* Descargar expediente */}
                 <Button
                   variant="outline"
                   size="sm"
@@ -151,6 +177,8 @@ export const ViewDocs = () => {
                 >
                   Descargar
                 </Button>
+
+                {/* Ver observaciones */}
                 <Button
                   variant="outline"
                   size="sm"
@@ -159,13 +187,26 @@ export const ViewDocs = () => {
                 >
                   Observaciones
                 </Button>
+
+                {/* Eliminar expediente */}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="text-red-600 border-red-600 hover:bg-red-50 px-3 py-1"
+                  onClick={() => {
+                    setExpedienteToDelete(file);
+                    setDeleteModalOpen(true);
+                  }}
+                >
+                  Eliminar
+                </Button>
               </div>
             </li>
           ))}
         </ul>
       )}
 
-      {/* Modal de Observaciones */}
+      {/* Modal de observaciones */}
       <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
         <DialogContent className="!w-[90vw] !max-w-[90vw] max-h-[80vh] overflow-y-auto border rounded-2xl p-8">
           <DialogHeader>
@@ -177,40 +218,23 @@ export const ViewDocs = () => {
             </DialogDescription>
           </DialogHeader>
 
+          {/* Contenido del modal: datos y observaciones */}
           {selectedExpediente && (
             <div className="flex flex-col md:flex-row gap-8 mt-6">
-              {/* Datos del expediente */}
+              {/* Datos básicos */}
               <div className="w-full md:w-1/2 bg-gray-50 border border-gray-200 rounded-xl p-6 shadow-sm">
                 <p className="text-lg font-semibold text-gray-700 mb-4">
                   Datos del expediente
                 </p>
-
-                <div className="space-y-4">
-                  <div>
-                    <p className="text-sm font-semibold text-gray-700">
-                      Nombre del expediente:
-                    </p>
-                    <p className="text-base text-gray-900 break-words">
-                      {selectedExpediente.name}
-                    </p>
-                  </div>
-
-                  <div>
-                    <p className="text-sm font-semibold text-gray-700">ID:</p>
-                    <p className="text-base text-gray-900">
-                      {selectedExpediente.id}
-                    </p>
-                  </div>
-
-                  <div>
-                    <p className="text-sm font-semibold text-gray-700">
-                      Semáforo:
-                    </p>
-                    <p className="text-base text-gray-900">
-                      {selectedExpediente.semaforo}
-                    </p>
-                  </div>
-                </div>
+                <p className="text-base text-gray-900 mb-2">
+                  <b>Nombre:</b> {selectedExpediente.name}
+                </p>
+                <p className="text-base text-gray-900 mb-2">
+                  <b>ID:</b> {selectedExpediente.id}
+                </p>
+                <p className="text-base text-gray-900">
+                  <b>Semáforo:</b> {selectedExpediente.semaforo}
+                </p>
               </div>
 
               {/* Observaciones */}
@@ -236,8 +260,6 @@ export const ViewDocs = () => {
             >
               Cerrar
             </Button>
-
-            {/* Mostrar botón solo si existe mandamiento */}
             {selectedExpediente?.mandamientoPath && (
               <Button
                 className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2 text-sm"
@@ -248,6 +270,41 @@ export const ViewDocs = () => {
                 Descargar mandamiento
               </Button>
             )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal de confirmación de eliminación */}
+      <Dialog open={deleteModalOpen} onOpenChange={setDeleteModalOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-lg font-semibold text-gray-800 text-center">
+              Confirmar eliminación
+            </DialogTitle>
+            <DialogDescription className="text-center text-gray-600">
+              ¿Estás seguro de que deseas eliminar este expediente?
+              <br />
+              Esta acción no se puede deshacer.
+            </DialogDescription>
+          </DialogHeader>
+
+          <DialogFooter className="flex justify-end space-x-3 mt-6">
+            {/* Cancelar acción */}
+            <Button
+              variant="secondary"
+              className="bg-gray-200 hover:bg-gray-300 text-gray-800 px-5 py-2 text-sm"
+              onClick={() => setDeleteModalOpen(false)}
+            >
+              Cancelar
+            </Button>
+
+            {/* Confirmar eliminación */}
+            <Button
+              className="bg-red-600 hover:bg-red-700 text-white px-5 py-2 text-sm"
+              onClick={handleDeleteExpediente}
+            >
+              Eliminar definitivamente
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
