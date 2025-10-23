@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Image from "next/image";
 import { useUser } from "@/hooks/useUser";
 import {
@@ -24,12 +24,10 @@ export const UploadFiles = () => {
   const [open, setOpen] = useState(false); // Control del modal
   const [file, setFile] = useState(null); // Archivo seleccionado
   const [loading, setLoading] = useState(false); // Estado de carga
+  const [buttonText, setButtonText] = useState("Confirmar"); // Texto dinámico del botón
 
   /**
    * Maneja el evento de carga del archivo
-   * 1. Verifica que haya un archivo seleccionado.
-   * 2. Lo sube al bucket de Supabase.
-   * 3. Llama a la API de expedientes para procesarlo.
    */
   const handleUpload = async () => {
     if (!file) {
@@ -74,6 +72,29 @@ export const UploadFiles = () => {
       setLoading(false);
     }
   };
+
+  /**
+   * Efecto para manejar el texto progresivo del botón
+   */
+  useEffect(() => {
+    let timer1, timer2;
+
+    if (loading) {
+      setButtonText("Subiendo archivo...");
+      timer1 = setTimeout(() => setButtonText("Procesando archivo..."), 10000);
+      timer2 = setTimeout(
+        () => setButtonText("Generando diagnóstico IA..."),
+        20000
+      );
+    } else {
+      setButtonText("Confirmar");
+    }
+
+    return () => {
+      clearTimeout(timer1);
+      clearTimeout(timer2);
+    };
+  }, [loading]);
 
   return (
     <>
@@ -121,7 +142,7 @@ export const UploadFiles = () => {
               disabled={loading}
               className="w-full sm:w-auto"
             >
-              {loading ? "Subiendo..." : "Confirmar"}
+              {buttonText}
             </Button>
           </DialogFooter>
         </DialogContent>
