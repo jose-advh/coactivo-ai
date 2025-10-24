@@ -102,7 +102,7 @@ export const UploadFiles = () => {
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="bg-black w-[40%] md:w-[20%] h-[120px] flex justify-center items-center rounded-xl cursor-pointer transform hover:scale-105 transition duration-300"
+        className="bg-black w-[100%] h-[120px] flex justify-center items-center rounded-xl cursor-pointer transform hover:scale-105 transition duration-300"
       >
         <Image
           src="/icons/upload-icon.svg"
